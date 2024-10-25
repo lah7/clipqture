@@ -1,0 +1,13 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Clipqture
+GenericName=Minimal Clipboard Manager
+Icon=edit-paste
+Exec=clipqture
+Encoding=UTF-8
+Terminal=false
+NoDisplay=false
+StartupNotify=false
+Terminal=false
+Categories=Utility;
