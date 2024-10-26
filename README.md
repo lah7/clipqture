@@ -15,6 +15,13 @@ It is designed for **text only** and under X11.
 
 ## Installation
 
+If you use Arch, there is a supplied PKGBUILD.
+
+    git clone https://github.com/lah7/clipqture.git
+    makepkg -i
+
+For other distributions:
+
 1. Make sure you have PyQt6 installed.
 
 2. Copy files:

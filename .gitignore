@@ -1,0 +1,8 @@
+# Python
+__pycache__
+.pyc
+
+# Arch Linux packaging
+pkg/
+src/
+*.pkg.tar.zst
