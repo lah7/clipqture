@@ -5,4 +5,5 @@ __pycache__
 # Arch Linux packaging
 pkg/
 src/
+*.tar.gz
 *.pkg.tar.zst

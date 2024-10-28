@@ -12,11 +12,11 @@ depends=(
   python-setproctitle
 )
 makedepends=()
-source=("git+https://github.com/lah7/clipqture/archive/refs/tags/v$pkgver.tar.gz")
-sha256sums=('afc91733fad4d5366d83c6767b11a51dd0d183292df2eff733d84f77c017ba16')
+source=("https://github.com/lah7/clipqture/archive/refs/tags/v$pkgver.tar.gz")
+sha256sums=('dc18f15edf09fe03fc1a70e8d90639451cc1074f362d0d0aec93daa3ed53d00d')
 
 package() {
-  cd "$pkgname"
+  cd "$pkgname-$pkgver"
   mkdir -p "$pkgdir/etc/xdg/autostart"
   mkdir -p "$pkgdir/usr/bin"
   mkdir -p "$pkgdir/usr/share/applications"
