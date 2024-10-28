@@ -157,6 +157,13 @@ class ClipQture(QMainWindow):
                 if item.icon:
                     action.setIcon(QIcon.fromTheme(item.icon))
                 menu.addAction(action)
+
+            menu.addSeparator()
+            clear = QAction("Clear History", self)
+            clear.setIcon(QIcon.fromTheme("edit-clear-history"))
+            clear.triggered.connect(self.clear_history)
+            menu.addAction(clear)
+
         else:
             empty = QAction("Empty clipboard history", menu)
             empty.setIcon(QIcon.fromTheme("edit-paste-symbolic"))
@@ -165,6 +172,10 @@ class ClipQture(QMainWindow):
 
         cursor_position = QCursor.pos()
         menu.exec(cursor_position)
+
+    def clear_history(self):
+        """Clear the clipboard history"""
+        self.history = []
 
 
 if __name__ == "__main__":
