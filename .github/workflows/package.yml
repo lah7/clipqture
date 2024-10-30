@@ -1,0 +1,39 @@
+name: Package
+
+on: [workflow_dispatch]
+
+jobs:
+  archlinux:
+    name: Arch Linux
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Start Arch Linux
+        run: |
+          # Start and update Arch Linux within a Docker container
+          docker run --privileged -d -t -v $GITHUB_WORKSPACE:/workspace --name archlinux archlinux:base-devel
+          docker exec archlinux pacman -Syu --noconfirm
+
+          # Add user
+          docker exec archlinux useradd builder
+          docker exec archlinux /bin/bash -c "echo 'builder ALL=(ALL:ALL) NOPASSWD:ALL' >> /etc/sudoers"
+
+          # This 'builder' user will take directory ownership
+          docker exec archlinux chown -R builder /workspace
+
+      - name: Build Package
+        run: |
+          docker exec --workdir=/workspace --user builder archlinux makepkg -d --noconfirm
+
+      - name: Stop Arch Linux
+        run: |
+          docker stop archlinux -t 1
+          docker rm archlinux
+
+      - name: Upload Package
+        uses: actions/upload-artifact@v4
+        with:
+          name: clipqture-${{github.run_number}}-pkg
+          path: '*.pkg.tar.zst'
