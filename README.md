@@ -15,7 +15,7 @@ which this project is focused on restoring.
 ![Comparison of clipqture and Klipper in Plasma 6.1 and 6.2](.readme/comparison.webp)
 
 It is designed to co-exist with the Plasma widget, although the clipboard state isn't
-be synchronised between the two programs. **Only text is supported** and
+synchronised between the two programs. **Only text is supported** and
 it's **designed for X11**.
 
 Otherwise, all it does is listen to the clipboard and _captures_ recently copied text.
