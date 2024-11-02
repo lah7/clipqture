@@ -9,8 +9,7 @@ ClipQture = _**Clip**board for **Qt**/KDE desktops cap**ture** program._
 
 A minimal clipboard assistant written in PyQt6. It brings back the previous
 Plasma (Kilpper) experience for the Clipboard's "Show at Mouse Position" shortcut.
-Plasma 6.2 switched to showing the widget, as opposed to a simple context menu,
-which this project is focused on restoring.
+Plasma 6.2 switched to showing the widget, as opposed to a simple context menu.
 
 ![Comparison of clipqture and Klipper in Plasma 6.1 and 6.2](.readme/comparison.webp)
 
@@ -18,11 +17,10 @@ It is designed to co-exist with the Plasma widget, although the clipboard state 
 synchronised between the two programs. **Only text is supported** and
 it's **designed for X11**.
 
-Otherwise, all it does is listen to the clipboard and _captures_ recently copied text.
+Otherwise, it listens to the clipboard and _captures_ recently copied text.
 A global shortcut configured in your desktop environment (like **Meta+V**) executes
 the program, which tells the first instance to open a context menu,
-allowing for a quick change of the active clipboard when editing text in any of
-your programs.
+allowing for a quick change of the active clipboard for any text program.
 
 
 ## Installation
@@ -41,7 +39,7 @@ This is required to open the context menu at your cursor position.
 
 ![Showing KDE Menu Editor with Advanced tab](.readme/menuedit.webp)
 
-The program will be automatically started when you log in.
+The program will be automatically started when you log in (`/etc/xdg/autostart`)
 
 
 ### Other Distributions & Environments
