@@ -15,7 +15,7 @@ depends=(
 )
 makedepends=()
 source=("https://github.com/lah7/clipqture/archive/refs/tags/v$pkgver.tar.gz")
-sha256sums=('dc18f15edf09fe03fc1a70e8d90639451cc1074f362d0d0aec93daa3ed53d00d')
+sha256sums=('2ba4e535b70f10f09ebe75efb5bf2eb0d00755426ba7a1abf42cc9cd440e572d')
 
 package() {
   cd "$pkgname-$pkgver"
