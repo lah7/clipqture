@@ -24,6 +24,7 @@ To use:
   - Configure a hotkey using your desktop environment to execute this script,
     which will use a socket to communicate to the first instance.
 """
+import configparser
 import os
 import re
 import signal
@@ -37,12 +38,6 @@ from PyQt6.QtCore import QThread, pyqtSignal
 from PyQt6.QtGui import QAction, QClipboard, QCursor, QIcon, QImage, QPixmap
 from PyQt6.QtWidgets import QApplication, QMainWindow, QMenu
 from Xlib import X, display
-
-# Options
-MAX_ITEMS = 10
-MAX_ITEM_LINE_LENGTH = 150
-OLD_KLIPPER_BEHAVIOUR = True
-CAPTURE_WINDOW_ICON = True
 
 DEBUG = False
 SOCKET_PATH = f"/run/user/{os.getuid()}/clipqture.sock"
@@ -147,10 +142,45 @@ class ClipQture(QMainWindow):
         self.clipboard: QClipboard = QApplication.clipboard() # type: ignore
         self.clipboard.dataChanged.connect(self.clipboard_changed)
         self.history: List[ClipboardItem] = []
-        self.max_items = MAX_ITEMS
         self.setWindowTitle("ClipQture")
+
+        # Options
+        self.max_items = 10
+        self.max_item_line_length = 150
+        self.old_klipper_behaviour = True
+        self.capture_window_icon = True
+        self.load_configuration()
+
         if DEBUG:
             print("Listening to clipboard...")
+
+    def load_configuration(self):
+        """Load the user's configuration, or create default with comments"""
+        config_path = os.path.expanduser("~/.config/clipqture.conf")
+        parser = configparser.ConfigParser()
+        parser.read(config_path)
+
+        if "clipqture" in parser:
+            if "max_items" in parser["clipqture"]:
+                self.max_items = int(parser["clipqture"]["max_items"])
+            if "max_item_line_length" in parser["clipqture"]:
+                self.max_item_line_length = int(parser["clipqture"]["max_item_line_length"])
+            if "old_klipper_behaviour" in parser["clipqture"]:
+                self.old_klipper_behaviour = parser["clipqture"].getboolean("old_klipper_behaviour")
+            if "capture_window_icon" in parser["clipqture"]:
+                self.capture_window_icon = parser["clipqture"].getboolean("capture_window_icon")
+        else:
+            with open(config_path, "w", encoding="utf-8") as f:
+                f.write("[clipqture]\n\n")
+                f.write("# How many items to remember on the clipboard?\n")
+                f.write(f"max_items = {self.max_items}\n\n")
+                f.write("# How many characters to show in the context menu?\n")
+                f.write(f"max_item_line_length = {self.max_item_line_length}\n\n")
+                f.write("# Show one line per item, strip whitespace, and hide '\\n' characters?\n")
+                f.write(f"old_klipper_behaviour = {self.old_klipper_behaviour}\n\n")
+                f.write("# X11 only: Show the application icon in the list?\n")
+                f.write(f"capture_window_icon = {self.capture_window_icon}\n\n")
+            print(f"Default configuration written to {config_path}")
 
     def clipboard_changed(self):
         """User copied data to the clipboard"""
@@ -164,7 +194,7 @@ class ClipQture(QMainWindow):
             return
 
         # Show an icon
-        if CAPTURE_WINDOW_ICON:
+        if self.capture_window_icon:
             item.icon = QPixmap()
             image = get_active_window_icon()
             if image:
@@ -212,7 +242,7 @@ class ClipQture(QMainWindow):
                 label_text = item.text.strip()
 
                 # Apply older Klipper (<= 6.1.0) behaviour
-                if OLD_KLIPPER_BEHAVIOUR:
+                if self.old_klipper_behaviour:
                     # Don't show '\n' characters, keep everything on one line
                     label_text = label_text.replace("\n", " ")
 
@@ -220,8 +250,8 @@ class ClipQture(QMainWindow):
                     label_text = re.sub(r"\s+", " ", label_text)
 
                 # Truncate long text
-                if len(item.text) > MAX_ITEM_LINE_LENGTH:
-                    label_text = label_text[:MAX_ITEM_LINE_LENGTH].strip() + "..."
+                if len(item.text) > self.max_item_line_length:
+                    label_text = label_text[:self.max_item_line_length].strip() + "..."
 
                 action = QAction(label_text, self)
                 action.triggered.connect(lambda _, text=item.text: self.clipboard.setText(text))

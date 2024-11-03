@@ -65,13 +65,9 @@ Then, use your desktop environment to:
 
 ## Configuration
 
-There are some basic settings you can set by editing the script directly.
-
-| Item                   | Default | Setting                                      |
-| ---------------------- | ------- | -------------------------------------------- |
-| `MAX_ITEMS`            | 10      | How many items to remember on the clipboard.
-| `MAX_ITEM_LINE_LENGTH` | 150     | How many characters to show in the context menu.
-| `OLD_KLIPPER_BEHAVIOUR`| True    | Show one line per item, strip whitespace, and hide `\n`.
+There are some basic settings to change with `~/.config/clipqture.conf`.
+It will be created with default settings on the first run. Restart the program
+to apply changes.
 
 
 ## Why does it exist?
