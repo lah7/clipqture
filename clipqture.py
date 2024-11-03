@@ -264,6 +264,9 @@ class ClipQture(QMainWindow):
 
                 menu.addAction(action)
 
+                if not self.old_klipper_behaviour:
+                    menu.addSeparator()
+
             menu.addSeparator()
             clear = QAction("Clear History", self)
             clear.setIcon(QIcon.fromTheme("edit-clear-history"))
