@@ -8,8 +8,10 @@ arch=(any)
 url="https://github.com/lah7/clipqture"
 license=(LGPL-2.1-or-later)
 depends=(
+  python-pillow
   python-pyqt6
   python-setproctitle
+  python-xlib
 )
 makedepends=()
 source=("https://github.com/lah7/clipqture/archive/refs/tags/v$pkgver.tar.gz")

@@ -32,17 +32,74 @@ import sys
 from typing import List
 
 import setproctitle
+from PIL import Image
 from PyQt6.QtCore import QThread, pyqtSignal
-from PyQt6.QtGui import QAction, QClipboard, QCursor, QIcon
+from PyQt6.QtGui import QAction, QClipboard, QCursor, QIcon, QImage, QPixmap
 from PyQt6.QtWidgets import QApplication, QMainWindow, QMenu
+from Xlib import X, display
 
 # Options
 MAX_ITEMS = 10
 MAX_ITEM_LINE_LENGTH = 150
 OLD_KLIPPER_BEHAVIOUR = True
+CAPTURE_WINDOW_ICON = True
 
 DEBUG = False
 SOCKET_PATH = f"/run/user/{os.getuid()}/clipqture.sock"
+
+
+def get_active_window_icon() -> Image.Image|None:
+    """
+    For X11, capture the icon of the active window.
+    This can be used to show which application the data was copied from.
+    """
+    # Connect to the X server
+    d = display.Display()
+    root = d.screen().root
+
+    # Get the active window
+    wm_icon = d.intern_atom("_NET_WM_ICON")
+    active_window = d.intern_atom("_NET_ACTIVE_WINDOW")
+    active_window = root.get_full_property(active_window, X.AnyPropertyType).value[0]
+
+    # Get the icon data
+    xwindow = d.create_resource_object("window", active_window)
+    xproperty = xwindow.get_full_property(wm_icon, X.AnyPropertyType)
+    if not xproperty:
+        return None
+
+    icon_data = xproperty.value
+
+    # Parse the icon data
+    icons = []
+    while icon_data:
+        width = icon_data[0]
+        height = icon_data[1]
+        icon = icon_data[2:2 + width * height]
+        icons.append((width, height, icon))
+        icon_data = icon_data[2 + width * height:]
+
+    # Convert the first icon to an image
+    if icons:
+        width, height, icon = icons[0]
+
+        # Adjust byte order from BGRA to RGBA
+        rgba_icon = []
+        for pixel in icon:
+            b = (pixel & 0x000000FF)
+            g = (pixel & 0x0000FF00) >> 8
+            r = (pixel & 0x00FF0000) >> 16
+            a = (pixel & 0xFF000000) >> 24
+            rgba_icon.append((r, g, b, a))
+
+        # Pack the pixel data into a byte string
+        pixel_data = bytes([component for pixel in rgba_icon for component in pixel])
+
+        # Create an image from the byte string
+        image = Image.frombytes("RGBA", (width, height), pixel_data)
+        return image
+
+    return None
 
 
 class UnixSocketServer(QThread):
@@ -78,8 +135,8 @@ class UnixSocketServer(QThread):
 
 class ClipboardItem(object):
     """Describes an item on the clipboard"""
-    text: str
-    icon: str
+    text: str = ""
+    icon: str|QPixmap|None = None
 
 
 class ClipQture(QMainWindow):
@@ -103,12 +160,19 @@ class ClipQture(QMainWindow):
         item = ClipboardItem()
         item.text = self.clipboard.text()
 
-        mimetypes = self.clipboard.mimeData().formats() # type: ignore
-        if "text/uri-list" in mimetypes:
-            item.icon = "edit-copy"
+        # Show an icon
+        if CAPTURE_WINDOW_ICON:
+            item.icon = QPixmap()
+            image = get_active_window_icon()
+            if image:
+                qimage = QImage(image.tobytes(), image.width, image.height, QImage.Format.Format_RGBA8888)
+                item.icon = QPixmap.fromImage(qimage)
         else:
-            item.icon = ""
+            mimetypes = self.clipboard.mimeData().formats() # type: ignore
+            if "text/uri-list" in mimetypes:
+                item.icon = "edit-copy"
 
+        # Tweak file:// paths by counting how many paths were copied
         filelist = item.text.split("\n")
         if len(filelist) > 1 and filelist[0].startswith("file://"):
             filelist = []
@@ -154,8 +218,13 @@ class ClipQture(QMainWindow):
 
                 action = QAction(label_text, self)
                 action.triggered.connect(lambda _, text=item.text: self.clipboard.setText(text))
+
                 if item.icon:
-                    action.setIcon(QIcon.fromTheme(item.icon))
+                    if isinstance(item.icon, str):
+                        action.setIcon(QIcon.fromTheme(item.icon))
+                    else:
+                        action.setIcon(QIcon(item.icon))
+
                 menu.addAction(action)
 
             menu.addSeparator()

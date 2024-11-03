@@ -22,6 +22,8 @@ A global shortcut configured in your desktop environment (like **Meta+V**) execu
 the program, which tells the first instance to open a context menu,
 allowing for a quick change of the active clipboard for any text program.
 
+It extends functionality by showing the window icon where the text was copied from (X11 only).
+
 
 ## Installation
 
