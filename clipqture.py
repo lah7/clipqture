@@ -160,6 +160,9 @@ class ClipQture(QMainWindow):
         item = ClipboardItem()
         item.text = self.clipboard.text()
 
+        if not item.text:
+            return
+
         # Show an icon
         if CAPTURE_WINDOW_ICON:
             item.icon = QPixmap()
