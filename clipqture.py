@@ -182,10 +182,14 @@ class ClipQture(QMainWindow):
                 filelist.append(line.replace("file://", "").strip())
             item.text = f"({len(filelist) - 1} paths): " + "\n".join(filelist)
 
-        for _item in self.history:
+        # Existing item, move to start
+        for index, _item in enumerate(self.history):
             if _item.text == item.text:
-                self.history.remove(_item)
+                self.history.pop(index)
+                self.history.insert(0, _item)
+                return
 
+        # New item, add to history
         self.history.insert(0, item)
         self.history = self.history[:self.max_items]
 
