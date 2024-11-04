@@ -38,6 +38,7 @@ from PyQt6.QtCore import QThread, pyqtSignal
 from PyQt6.QtGui import QAction, QClipboard, QCursor, QIcon, QImage, QPixmap
 from PyQt6.QtWidgets import QApplication, QMainWindow, QMenu
 from Xlib import X, display
+from Xlib.error import XError
 
 DEBUG = False
 SOCKET_PATH = f"/run/user/{os.getuid()}/clipqture.sock"
@@ -196,7 +197,11 @@ class ClipQture(QMainWindow):
         # Show an icon
         if self.capture_window_icon:
             item.icon = QPixmap()
-            image = get_active_window_icon()
+            try:
+                image = get_active_window_icon()
+            except XError:
+                image = None
+
             if image:
                 qimage = QImage(image.tobytes(), image.width, image.height, QImage.Format.Format_RGBA8888)
                 item.icon = QPixmap.fromImage(qimage)
