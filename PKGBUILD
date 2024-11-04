@@ -1,7 +1,7 @@
 # Maintainer: Luke Horwell <code (at) horwell (dot) me>
 
 pkgname=clipqture
-pkgver=1.1.0
+pkgver=1.1.1
 pkgrel=1
 pkgdesc="Minimal clipboard monitor"
 arch=(any)
@@ -15,7 +15,7 @@ depends=(
 )
 makedepends=()
 source=("https://github.com/lah7/clipqture/archive/refs/tags/v$pkgver.tar.gz")
-sha256sums=('2ba4e535b70f10f09ebe75efb5bf2eb0d00755426ba7a1abf42cc9cd440e572d')
+sha256sums=('a1db000ec0484aaae835009154092b9842fd47836bccf4d087c637c76ba45b61')
 
 package() {
   cd "$pkgname-$pkgver"
