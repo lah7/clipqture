@@ -35,7 +35,8 @@ from typing import List
 import setproctitle
 from PIL import Image
 from PyQt6.QtCore import QThread, pyqtSignal
-from PyQt6.QtGui import QAction, QClipboard, QCursor, QIcon, QImage, QPixmap
+from PyQt6.QtGui import (QAction, QClipboard, QColor, QCursor, QIcon, QImage,
+                         QPixmap)
 from PyQt6.QtWidgets import QApplication, QMainWindow, QMenu
 from Xlib import X, display
 from Xlib.error import XError
@@ -190,12 +191,18 @@ class ClipQture(QMainWindow):
 
         item = ClipboardItem()
         item.text = self.clipboard.text()
+        item.icon = ""
 
         if not item.text:
             return
 
-        # Show an icon
-        if self.capture_window_icon:
+        # Determine icon to show
+        hex_colour = item.text.replace(";", "").strip()
+        if hex_colour.startswith("#") and (len(hex_colour) == 4 or len(hex_colour) == 7) and hex_colour[1:].isalnum():
+            item.icon = QPixmap(16, 16)
+            item.icon.fill(QColor(hex_colour))
+
+        elif self.capture_window_icon:
             item.icon = QPixmap()
             try:
                 image = get_active_window_icon()
@@ -205,7 +212,8 @@ class ClipQture(QMainWindow):
             if image:
                 qimage = QImage(image.tobytes(), image.width, image.height, QImage.Format.Format_RGBA8888)
                 item.icon = QPixmap.fromImage(qimage)
-        else:
+
+        elif not item.icon:
             mimetypes = self.clipboard.mimeData().formats() # type: ignore
             if "text/uri-list" in mimetypes:
                 item.icon = "edit-copy"
