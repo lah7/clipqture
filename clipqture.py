@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #
-# Copyright (C) 2024 Luke Horwell <code@horwell.me>
+# Copyright (C) 2024-2025 Luke Horwell <code@horwell.me>
 #
 """
 Minimal clipboard monitor written in PyQt6 for switching between text copied
