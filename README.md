@@ -21,6 +21,13 @@ the program, which tells the first instance to open a context menu.
 It extends original functionality by showing the window icon where the text was copied from!
 
 
+## Features
+
+* Show window icon where text was copied from **(X11 only)**
+* Show previews of colour hex values (e.g. #RRGGBB).
+* Configurable preferences file.
+
+
 ## Installation
 
 ### Arch / KDE
