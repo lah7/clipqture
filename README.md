@@ -77,6 +77,24 @@ It will be created with default settings on the first run. Restart the program
 to apply changes.
 
 
+### Wayland
+
+To hide the window title bar that appears for the menu that is opened, you'll
+need to use the settings for your window manager.
+
+In KDE/Breeze, you can set this up in **System Settings**:
+
+1. Go to Colours & Themes → **Window Decorations**
+2. Edit the "Breeze" theme.
+3. Go to "Window-Specific Overrides" tab.
+5. Add an exception for:
+  * Window Title: clipqture.py
+  * Check "Hide window title bar"
+6. Apply and save changes.
+
+This step is not necessary under X11.
+
+
 ## Why does it exist?
 
 Starting in Plasma 6.2.0, KDE's Klipper (Clipboard applet) went in a different
