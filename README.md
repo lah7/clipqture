@@ -79,6 +79,9 @@ to apply changes.
 
 ### Wayland
 
+Support under Wayland is poor, due to the security model of Wayland. Items may not
+appear on the clipboard, and the menu doesn't open under the cursor.
+
 To hide the window title bar that appears for the menu that is opened, you'll
 need to use the settings for your window manager.
 
