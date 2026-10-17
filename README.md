@@ -1,6 +1,7 @@
-# ClipQture
+# Clipqture
 
-A minimal clipboard assistant written in PyQt6. It brings back the previous
+A minimal clipboard written in PyQt6 for switching between text on the
+clipboard via a simple context menu. It brings back the previous
 Plasma 6.1 (Kilpper) experience for the Clipboard's "Show at Mouse Position" shortcut.
 
 ClipQture = _**Clip**board for **Qt**/KDE desktops cap**ture** program._
@@ -8,24 +9,18 @@ ClipQture = _**Clip**board for **Qt**/KDE desktops cap**ture** program._
 ![Comparison of clipqture and Klipper in Plasma 6.1 and 6.2](.readme/comparison.webp)
 
 It is designed to co-exist with the Plasma widget, although the clipboard state isn't
-synchronised between the two programs. It is designed for **selecting text**
-and **X11 only**.
+synchronised between the two programs (such as history)
 
-Otherwise, this is how it works:
-
-* Listen to the clipboard and _capture_ recently copied text.
-* A global shortcut configured in your desktop environment (like **Meta+V**) executes
-the program, which tells the first instance to open a context menu.
-* Use the context menu to quickly change the active clipboard text.
-
-It extends original functionality by showing the window icon where the text was copied from!
+Compatible with both X11 and Wayland. Designed for KDE Plasma.
 
 
 ## Features
 
-* Show window icon where text was copied from **(X11 only)**
+* Show window icon where text was copied from.
 * Show previews of colour hex values (e.g. #RRGGBB).
 * Configurable preferences file.
+
+Note, the clipboard makes no attempt to hide sensitive data (e.g. passwords).
 
 
 ## Installation
@@ -36,8 +31,6 @@ Grab a copy from [Releases]. Or, build a package using the supplied PKGBUILD:
 
     git clone https://github.com/lah7/clipqture.git
     makepkg -i
-
-_(If this software is useful for many people_ ⭐, _I'll consider submitting it to the AUR.)_
 
 [Releases]: https://github.com/lah7/clipqture
 
@@ -102,8 +95,7 @@ This step is not necessary under X11.
 
 Starting in Plasma 6.2.0, KDE's Klipper (Clipboard applet) went in a different
 direction. The shortcut for _"Show Clipboard Items at Mouse Position"_ opens
-the full widget at the cursor. I used it often enough that it felt like a
-regression for this use case.
+the full widget at the cursor. I used it often enough that I missed the older version.
 
 From a UI perspective, the widget has more buttons, more padding per item,
 and buttons getting in the way. Context menus had a border, but the Plasma widget
