@@ -1,7 +1,7 @@
 # Maintainer: Luke Horwell <code (at) horwell (dot) me>
 
 pkgname=clipqture
-pkgver=1.2.0
+pkgver=2.0.0
 pkgrel=1
 pkgdesc="Minimal clipboard monitor for KDE Plasma"
 arch=(any)
@@ -14,7 +14,7 @@ depends=(
 )
 makedepends=()
 source=("https://github.com/lah7/clipqture/archive/refs/tags/v$pkgver.tar.gz")
-sha256sums=('83a4a8b53eb8aae6e6a625cc2cc7ec5ccead4109fbedb72433982baff250fd31')
+sha256sums=('f8fe5eada8c1d143a5a642e72a83da9fb0738089c24ca53fe03cb39f5e5b97f0')
 
 package() {
   cd "$pkgname-$pkgver"
