@@ -3,15 +3,14 @@
 pkgname=clipqture
 pkgver=1.2.0
 pkgrel=1
-pkgdesc="Minimal clipboard monitor"
+pkgdesc="Minimal clipboard monitor for KDE Plasma"
 arch=(any)
 url="https://github.com/lah7/clipqture"
-license=(LGPL-2.1-or-later)
+license=(LGPL-3.0-or-later)
 depends=(
-  python-pillow
   python-pyqt6
   python-setproctitle
-  python-xlib
+  wl-clipboard
 )
 makedepends=()
 source=("https://github.com/lah7/clipqture/archive/refs/tags/v$pkgver.tar.gz")
@@ -22,6 +21,8 @@ package() {
   mkdir -p "$pkgdir/etc/xdg/autostart"
   mkdir -p "$pkgdir/usr/bin"
   mkdir -p "$pkgdir/usr/share/applications"
+  mkdir -p "$pkgdir/usr/share/kwin/scripts"
+  cp -rv kwin/clipqture "$pkgdir/usr/share/kwin/scripts/"
   cp -v clipqture.py "$pkgdir/usr/bin/clipqture"
   cp -v clipqture.desktop "$pkgdir/etc/xdg/autostart/"
   cp -v clipqture.desktop "$pkgdir/usr/share/applications/"

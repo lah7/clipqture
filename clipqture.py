@@ -13,138 +13,136 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #
-# Copyright (C) 2024-2025 Luke Horwell <code@horwell.me>
+# Copyright (C) 2024-2026 Luke Horwell <code@horwell.me>
 #
 """
-Minimal clipboard monitor written in PyQt6 for switching between text copied
-to the clipboard via a context menu.
+Minimal clipboard monitor written in PyQt6 for switching between text on the
+clipboard via a simple context menu.
 
-To use:
-  - Run it at start-up, to monitor the clipboard.
-  - Configure a hotkey using your desktop environment to execute this script,
-    which will use a socket to communicate to the first instance.
+Brings back the Plasma 6.1 Kilpper experience, with support for Wayland.
+
+This program runs in the background monitoring the clipboard via:
+    wl-paste --watch
+
+A KWin script provides functionality that normal applications can't achieve
+on Wayland, such as opening the menu from a global shortcut and positioning
+it under the cursor, and knowing which program icon originally copied the content.
 """
+import base64
 import configparser
 import os
 import re
+import shutil
 import signal
-import socket
+import subprocess
 import sys
-from typing import List
+from typing import Dict, List
 
 import setproctitle
-from PIL import Image
-from PyQt6.QtCore import QThread, pyqtSignal
-from PyQt6.QtGui import (QAction, QClipboard, QColor, QCursor, QIcon, QImage,
-                         QPixmap)
-from PyQt6.QtWidgets import QApplication, QMainWindow, QMenu
-from Xlib import X, display
-from Xlib.error import XError
+from PyQt6.QtCore import (QEvent, QObject, QProcess, QStandardPaths, Qt,
+                          pyqtClassInfo, pyqtSlot)
+from PyQt6.QtDBus import QDBusAbstractAdaptor, QDBusConnection
+from PyQt6.QtGui import QAction, QColor, QIcon, QKeyEvent, QPixmap
+from PyQt6.QtWidgets import QApplication, QMenu
 
-DEBUG = False
-SOCKET_PATH = f"/run/user/{os.getuid()}/clipqture.sock"
+APP_ID = "clipqture"
+DBUS_SERVICE = "me.horwell.clipqture"
+DBUS_PATH = "/Clipqture"
+DBUS_INTERFACE = "me.horwell.clipqture"
+
+# The KWin script identifies the menu window by this title.
+MENU_TITLE = "Clipqture Menu"
 
 
-def get_active_window_icon() -> Image.Image|None:
+def find_icon_name(desktop_file: str, window_class: str) -> str:
     """
-    For X11, capture the icon of the active window.
-    This can be used to show which application the data was copied from.
+    Resolve the icon name of an application from its window properties.
+    Returns an empty string if it couldn't be determined.
     """
-    # Connect to the X server
-    d = display.Display()
-    root = d.screen().root
+    candidates = [name for name in (desktop_file, window_class, window_class.lower()) if name]
+    candidates = [name[:-len(".desktop")] if name.endswith(".desktop") else name for name in candidates]
 
-    # Get the active window
-    wm_icon = d.intern_atom("_NET_WM_ICON")
-    active_window = d.intern_atom("_NET_ACTIVE_WINDOW")
-    active_window = root.get_full_property(active_window, X.AnyPropertyType).value[0]
-
-    # Get the icon data
-    xwindow = d.create_resource_object("window", active_window)
-    xproperty = xwindow.get_full_property(wm_icon, X.AnyPropertyType)
-    if not xproperty:
-        return None
-
-    icon_data = xproperty.value
-
-    # Parse the icon data
-    icons = []
-    while icon_data:
-        width = icon_data[0]
-        height = icon_data[1]
-        icon = icon_data[2:2 + width * height]
-        icons.append((width, height, icon))
-        icon_data = icon_data[2 + width * height:]
-
-    # Convert the first icon to an image
-    if icons:
-        width, height, icon = icons[0]
-
-        # Adjust byte order from BGRA to RGBA
-        rgba_icon = []
-        for pixel in icon:
-            b = (pixel & 0x000000FF)
-            g = (pixel & 0x0000FF00) >> 8
-            r = (pixel & 0x00FF0000) >> 16
-            a = (pixel & 0xFF000000) >> 24
-            rgba_icon.append((r, g, b, a))
-
-        # Pack the pixel data into a byte string
-        pixel_data = bytes([component for pixel in rgba_icon for component in pixel])
-
-        # Create an image from the byte string
-        image = Image.frombytes("RGBA", (width, height), pixel_data)
-        return image
-
-    return None
-
-
-class UnixSocketServer(QThread):
-    """
-    Create a Unix socket server to listen for messages from another instance
-    of this program. This can be used to open the context menu.
-    """
-    signal_received = pyqtSignal()
-
-    def run(self):
-        """
-        Forever listen for messages from another instance of this program.
-        When a message is received, emit the signal to open the context menu.
-        """
-        server_socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    for name in candidates:
+        path = QStandardPaths.locate(QStandardPaths.StandardLocation.ApplicationsLocation, f"{name}.desktop")
+        if not path:
+            continue
+        parser = configparser.ConfigParser(interpolation=None, strict=False)
         try:
-            server_socket.bind(SOCKET_PATH)
-        except OSError:
-            pass
+            parser.read(path, encoding="utf-8")
+            icon = parser.get("Desktop Entry", "Icon", fallback="")
+        except configparser.Error:
+            icon = ""
+        if icon:
+            return icon
 
-        server_socket.listen(1)
+    for name in candidates:
+        if QIcon.hasThemeIcon(name):
+            return name
 
-        while True:
-            conn, addr = server_socket.accept() # pylint: disable=unused-variable
-
-            while True:
-                data = conn.recv(8)
-                if data:
-                    self.signal_received.emit()
-                else:
-                    break
+    return ""
 
 
-class ClipboardItem(object):
+class ClipboardItem:
     """Describes an item on the clipboard"""
     text: str = ""
     icon: str|QPixmap|None = None
 
 
-class ClipQture(QMainWindow):
+class HistoryMenu(QMenu):
+    """
+    The clipboard history menu.
+
+    Applications can't open a popup at an arbitrary position on Wayland, so it
+    is a borderless window that the KWin script moves under the cursor.
+    """
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle(MENU_TITLE)
+        self.setWindowFlags(Qt.WindowType.Tool | Qt.WindowType.FramelessWindowHint)
+        # Only popups close themselves when an item is chosen.
+        self.triggered.connect(self.close)
+
+    def event(self, e: QEvent|None) -> bool:
+        if e and e.type() == QEvent.Type.WindowDeactivate:
+            self.close()
+        return super().event(e)
+
+    def keyPressEvent(self, e: QKeyEvent|None):
+        if e and e.key() == Qt.Key.Key_Escape:
+            self.close()
+            return
+        super().keyPressEvent(e)
+
+
+@pyqtClassInfo("D-Bus Interface", DBUS_INTERFACE)
+class ClipqtureAdaptor(QDBusAbstractAdaptor):
+    """D-Bus interface used by the KWin script"""
+    def __init__(self, parent_daemon: "Clipqture"):
+        super().__init__(parent_daemon)
+        self.daemon = parent_daemon
+
+    @pyqtSlot()
+    def ShowMenu(self): # pylint: disable=invalid-name
+        """Open the clipboard history menu"""
+        self.daemon.show_menu()
+
+    @pyqtSlot(str, str)
+    def ActiveWindowChanged(self, desktop_file: str, window_class: str): # pylint: disable=invalid-name
+        """The active window changed (sent by the KWin script)"""
+        self.daemon.set_active_window(desktop_file, window_class)
+
+
+class Clipqture(QObject):
     """Minimial [Clip]board Capt[ure] for [Qt] desktop environments"""
     def __init__(self):
         super().__init__()
 
-        self.clipboard: QClipboard = QApplication.clipboard() # type: ignore
-        self.clipboard.dataChanged.connect(self.clipboard_changed)
         self.history: List[ClipboardItem] = []
-        self.setWindowTitle("ClipQture")
+        self.active_icon = ""
+        self.icon_cache: Dict[tuple, str] = {}
+        self.menu: HistoryMenu|None = None
+        self.watcher: QProcess|None = None
+        self.watch_buffer = b""
 
         # Options
         self.max_items = 10
@@ -153,8 +151,9 @@ class ClipQture(QMainWindow):
         self.capture_window_icon = True
         self.load_configuration()
 
-        if DEBUG:
-            print("Listening to clipboard...")
+        if not (shutil.which("wl-paste") and shutil.which("wl-copy")):
+            sys.exit("clipqture requires 'wl-clipboard' to be installed.")
+        self.start_watcher()
 
     def load_configuration(self):
         """Load the user's configuration, or create default with comments"""
@@ -180,17 +179,56 @@ class ClipQture(QMainWindow):
                 f.write(f"max_item_line_length = {self.max_item_line_length}\n\n")
                 f.write("# Show one line per item, strip whitespace, and hide '\\n' characters?\n")
                 f.write(f"old_klipper_behaviour = {self.old_klipper_behaviour}\n\n")
-                f.write("# X11 only: Show the application icon in the list?\n")
+                f.write("# KDE only: Show the application icon in the list? (requires the KWin script)\n")
                 f.write(f"capture_window_icon = {self.capture_window_icon}\n\n")
             print(f"Default configuration written to {config_path}")
 
-    def clipboard_changed(self):
-        """User copied data to the clipboard"""
-        if DEBUG:
-            print("Clipboard data changed")
+    def start_watcher(self):
+        """
+        Wayland doesn't notify unfocused applications of clipboard changes,
+        so use wl-paste to listen via the data-control protocol.
+        For every change, print the clipboard as one line of base64.
+        """
+        self.watcher = QProcess(self)
+        self.watcher.readyReadStandardOutput.connect(self.watcher_output)
+        self.watcher.finished.connect(self.watcher_finished)
+        self.watcher.start("wl-paste", ["--type", "text", "--watch", "sh", "-c", "base64 -w0; echo"])
 
+    def watcher_output(self):
+        """Received clipboard data from wl-paste"""
+        assert self.watcher
+        self.watch_buffer += bytes(self.watcher.readAllStandardOutput().data())
+        *lines, self.watch_buffer = self.watch_buffer.split(b"\n")
+        for line in lines:
+            try:
+                text = base64.b64decode(line).decode("utf-8")
+            except ValueError:
+                continue
+            self.clipboard_changed(text)
+
+    def watcher_finished(self):
+        """wl-paste stopped (e.g. the compositor doesn't support data-control)"""
+        assert self.watcher
+        print("wl-paste stopped: " + bytes(self.watcher.readAllStandardError().data()).decode("utf-8", "replace"), file=sys.stderr)
+
+    def set_active_window(self, desktop_file: str, window_class: str):
+        """The KWin script reports the focused window, which is where copied text originates from"""
+        if APP_ID in [desktop_file, window_class]:
+            return
+
+        key = (desktop_file, window_class)
+        if key not in self.icon_cache:
+            self.icon_cache[key] = find_icon_name(desktop_file, window_class)
+        self.active_icon = self.icon_cache[key]
+
+    def set_clipboard(self, text: str):
+        """Change the active clipboard text"""
+        subprocess.run(["wl-copy", "--type", "text/plain"], input=text.encode("utf-8"), check=False)
+
+    def clipboard_changed(self, text: str):
+        """User copied data to the clipboard"""
         item = ClipboardItem()
-        item.text = self.clipboard.text()
+        item.text = text
         item.icon = ""
 
         if not item.text:
@@ -203,20 +241,7 @@ class ClipQture(QMainWindow):
             item.icon.fill(QColor(hex_colour))
 
         elif self.capture_window_icon:
-            item.icon = QPixmap()
-            try:
-                image = get_active_window_icon()
-            except XError:
-                image = None
-
-            if image:
-                qimage = QImage(image.tobytes(), image.width, image.height, QImage.Format.Format_RGBA8888)
-                item.icon = QPixmap.fromImage(qimage)
-
-        elif not item.icon:
-            mimetypes = self.clipboard.mimeData().formats() # type: ignore
-            if "text/uri-list" in mimetypes:
-                item.icon = "edit-copy"
+            item.icon = self.active_icon
 
         # Tweak file:// paths by counting how many paths were copied
         filelist = item.text.split("\n")
@@ -239,15 +264,16 @@ class ClipQture(QMainWindow):
         self.history.insert(0, item)
         self.history = self.history[:self.max_items]
 
-    def show_context_menu(self):
+    def show_menu(self):
         """
         Provide the user a summarised list of the clipboard history.
         The user can change the active clipboard selection.
         """
-        if DEBUG:
-            print("Got signal to open context menu")
+        if self.menu:
+            self.menu.close()
 
-        menu = QMenu()
+        menu = HistoryMenu()
+        self.menu = menu
 
         if self.history:
             for item in self.history:
@@ -266,12 +292,15 @@ class ClipQture(QMainWindow):
                 if len(item.text) > self.max_item_line_length:
                     label_text = label_text[:self.max_item_line_length].strip() + "..."
 
-                action = QAction(label_text, self)
-                action.triggered.connect(lambda _, text=item.text: self.clipboard.setText(text))
+                action = QAction(label_text, menu)
+                action.triggered.connect(lambda _, text=item.text: self.set_clipboard(text))
 
                 if item.icon:
                     if isinstance(item.icon, str):
-                        action.setIcon(QIcon.fromTheme(item.icon))
+                        if item.icon.startswith("/"):
+                            action.setIcon(QIcon(item.icon))
+                        else:
+                            action.setIcon(QIcon.fromTheme(item.icon))
                     else:
                         action.setIcon(QIcon(item.icon))
 
@@ -281,7 +310,7 @@ class ClipQture(QMainWindow):
                     menu.addSeparator()
 
             menu.addSeparator()
-            clear = QAction("Clear History", self)
+            clear = QAction("Clear History", menu)
             clear.setIcon(QIcon.fromTheme("edit-clear-history"))
             clear.triggered.connect(self.clear_history)
             menu.addAction(clear)
@@ -292,8 +321,8 @@ class ClipQture(QMainWindow):
             empty.setEnabled(False)
             menu.addAction(empty)
 
-        cursor_position = QCursor.pos()
-        menu.exec(cursor_position)
+        # Position is set by the KWin script
+        menu.show()
 
     def clear_history(self):
         """Clear the clipboard history"""
@@ -306,21 +335,17 @@ if __name__ == "__main__":
     # Allow CTRL+C to exit program
     signal.signal(signal.SIGINT, signal.SIG_DFL)
 
-    # When a second instance is opened, talk to the first instance.
-    if os.path.exists(SOCKET_PATH):
-        try:
-            client_socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-            client_socket.connect(SOCKET_PATH)
-            client_socket.send(b"1")
-            sys.exit(0)
-        except ConnectionRefusedError:
-            # The process listening to it had died.
-            os.remove(SOCKET_PATH)
-
-    # This is the first instance, manage the clipboard and wait for the signal.
     app = QApplication(sys.argv)
-    window = ClipQture()
-    server = UnixSocketServer()
-    server.signal_received.connect(window.show_context_menu)
-    server.start()
+    app.setDesktopFileName(APP_ID)
+    app.setQuitOnLastWindowClosed(False)
+
+    # Only one instance may run, as it owns the D-Bus service.
+    bus = QDBusConnection.sessionBus()
+    if not bus.registerService(DBUS_SERVICE):
+        sys.exit("clipqture is already running.")
+
+    # Monitor the clipboard and wait for the KWin script.
+    daemon = Clipqture()
+    ClipqtureAdaptor(daemon)
+    bus.registerObject(DBUS_PATH, daemon, QDBusConnection.RegisterOption.ExportAdaptors)
     app.exec()

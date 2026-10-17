@@ -11,7 +11,9 @@ ClipQture = _**Clip**board for **Qt**/KDE desktops cap**ture** program._
 It is designed to co-exist with the Plasma widget, although the clipboard state isn't
 synchronised between the two programs (such as history)
 
-Compatible with both X11 and Wayland. Designed for KDE Plasma.
+Designed for KDE Plasma 6.8+ / Wayland only.
+
+For X11 support, use the [v1.2.0 tag.](https://github.com/lah7/clipqture/tree/v1.2.0)
 
 
 ## Features
@@ -34,10 +36,11 @@ Grab a copy from [Releases]. Or, build a package using the supplied PKGBUILD:
 
 [Releases]: https://github.com/lah7/clipqture
 
-Next, use **KDE Menu Editor** to configure a shortcut key to launch this program.
-This is required to open the context menu at your cursor position.
+Next, enable the **Clipqture** script in **System Settings** → Window Management →
+**KWin Scripts**.
 
-![Showing KDE Menu Editor with Advanced tab](.readme/menuedit.webp)
+The shortcut can be changed in **System Settings** → Keyboard → Shortcuts.
+(Disable Klipper's "Show Clipboard Items at Mouse Position" shortcut if it uses Meta+V.)
 
 The program will be automatically started when you log in (`/etc/xdg/autostart`)
 
@@ -50,17 +53,17 @@ The program will be automatically started when you log in (`/etc/xdg/autostart`)
 
     * `clipqture.py` to `~/.local/bin/` (you may need to update your PATH)
     * `clipqture.desktop` to `~/.local/share/applications/`
+    * `kwin/clipqture` to `~/.local/share/kwin/scripts/`
 
     Edit the `.desktop` files to adjust the path of the `Exec=` line to point
     to the full path where you placed `clipqture.py`.
 
+3. Enable the KWin script (see above) and add `clipqture.py` to run at startup.
+
+[wl-clipboard] must be installed.
+
 [Python dependencies]: PKGBUILD#10
-
-Then, use your desktop environment to:
-
-* Set up a global shortcut that executes this file.
-* Add this script to run at startup.
-    * For example, in KDE, use **System Settings** > **Autostart**. In MATE, use **Start-up Applications**.
+[wl-clipboard]: https://github.com/bugaevc/wl-clipboard
 
 
 ## Configuration
@@ -68,27 +71,6 @@ Then, use your desktop environment to:
 There are some basic settings to change with `~/.config/clipqture.conf`.
 It will be created with default settings on the first run. Restart the program
 to apply changes.
-
-
-### Wayland
-
-Support under Wayland is poor, due to the security model of Wayland. Items may not
-appear on the clipboard, and the menu doesn't open under the cursor.
-
-To hide the window title bar that appears for the menu that is opened, you'll
-need to use the settings for your window manager.
-
-In KDE/Breeze, you can set this up in **System Settings**:
-
-1. Go to Colours & Themes → **Window Decorations**
-2. Edit the "Breeze" theme.
-3. Go to "Window-Specific Overrides" tab.
-5. Add an exception for:
-  * Window Title: clipqture.py
-  * Check "Hide window title bar"
-6. Apply and save changes.
-
-This step is not necessary under X11.
 
 
 ## Why does it exist?

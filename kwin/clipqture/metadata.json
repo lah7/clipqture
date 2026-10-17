@@ -1,0 +1,18 @@
+{
+    "KPlugin": {
+        "Id": "clipqture",
+        "Name": "Clipqture",
+        "Description": "Global shortcut, active window tracking and menu placement for Clipqture",
+        "Authors": [
+            {
+                "Name": "Luke Horwell",
+                "Email": "code@horwell.me"
+            }
+        ],
+        "License": "GPL-3.0-or-later",
+        "Version": "2.0"
+    },
+    "KPackageStructure": "KWin/Script",
+    "X-Plasma-API": "javascript",
+    "X-Plasma-MainScript": "code/main.js"
+}
